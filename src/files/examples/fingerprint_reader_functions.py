@@ -6,11 +6,9 @@
 #       DESCRIPTION: 
 #
 #       CALL SAMPLE:
-#               Usage  ./myscript.py
-#       CALL PARAMETERS:
-#               1) 
+#               Usage  python2 fingerprint_reader_function.py -h will give you the possibilities
 #
-#       @author: Philippe Gachoud
+#       @author: Philippe Gachoud inspired from Bastian Raschke files and examples
 #       @creation: 20180101
 #       @last modification:
 #       @version: 1.0
