@@ -3,7 +3,8 @@
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #
-#       DESCRIPTION: 
+#       DESCRIPTION: Having an example all in one file including miscancellous possibilites of the 
+#		library and being able to call them from command line
 #
 #       CALL SAMPLE:
 #               Usage  python2 fingerprint_reader_function.py -h will give you the possibilities
