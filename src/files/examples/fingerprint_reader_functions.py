@@ -18,46 +18,27 @@
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-################################################################################
-# SCRIPT_DIR SETTING
-################################################################################
-
-################################################################################
-################################################################################
 # INCLUDES
-################################################################################
-################################################################################
 import sys
-import logging # http://www.onlamp.com/pub/a/python/2005/06/02/logging.html
+import logging 
 import time
 from pyfingerprint.pyfingerprint import PyFingerprint
 import argparse
 import hashlib
 
-################################################################################
-################################################################################
 # CONSTANTS
-################################################################################
-################################################################################
+DEFAULT_USB_DEVICE = '/dev/ttyUSB0' 
 
-################################################################################
-################################################################################
 # VARIABLES
-################################################################################ 
-################################################################################ 
-
 global f # Fingerprintreader
+usb_device = DEFAULT_USB_DEVICE
 
-################################################################################
-################################################################################
 # FUNCTIONS DEFINITION 
-################################################################################
-################################################################################
 def init():
 	global f
 	logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, filemode="a+", format="%(asctime)-15s %(levelname)-8s %(message)s")
 	try:
-	    f = PyFingerprint('/dev/ttyUSB0', 57600, 0xFFFFFFFF, 0x00000000)
+	    f = PyFingerprint(usb_device, 57600, 0xFFFFFFFF, 0x00000000)
 
 	    if ( f.verifyPassword() == False ):
 		raise ValueError('The given fingerprint sensor password is wrong!')
@@ -69,16 +50,16 @@ def init():
 
 def display_system_parameters():
 	""" Display system parameters as logger info level"""
-	tuple1 = f.getSystemParameters()
-	logging.info("System parameters : status register (%s), system id(%s), storage capacity(%s), security level(%s), sensor address(%s), packet length(%s), baudrate(%s)" % (tuple1[0], tuple1[1], tuple1[2], tuple1[3], tuple1[4], tuple1[5], tuple1[6]))
+	system_parameters = f.getSystemParameters()
+	logging.info("System parameters : status register (%s), system id(%s), storage capacity(%s), security level(%s), sensor address(%s), packet length(%s), baudrate(%s)" % (system_parameters[0], system_parameters[1], system_parameters[2], system_parameters[3], system_parameters[4], system_parameters[5], system_parameters[6]))
 
 def delete():
-	"""Deletes a template after asking for its position """
+	"""Deletes a template after asking for its position, first position is 0 """
 	try:
 		positionNumber = input('Please enter the template position you want to delete: ')
 		positionNumber = int(positionNumber)
 
-		if ( f.deleteTemplate(positionNumber + 1) == True ):
+		if ( f.deleteTemplate(positionNumber) == True ):
 			print('Template deleted!')
 	except Exception as e:
 		print('Operation failed!')
@@ -164,44 +145,8 @@ def search():
 		print('Exception message: ' + str(e))
 		exit(1)
 
-
-def init_arg_parse():
-	"""App help"""
-	#https://docs.python.org/2/library/optparse.html
-	#https://docs.python.org/2/library/argparse.html#printing-help
-	#https://docs.python.org/2/howto/argparse.html#id1
-	global parser
-	parser = argparse.ArgumentParser(description='Do the given action with fingerprintReader')
-	
-	parser.add_argument("-v", "--verbose", help="Display system parameters of sensor", action="store_true")
-	parser.add_argument("-e", "--enroll", help="Create a new fingerprint model and store it into database", action="store_true")
-	parser.add_argument("-t", "--templates", help="Display current templates count", action="store_true")
-	parser.add_argument("-d", "--delete", help="Deletes a template after getting fingerprints", action="store_true")
-	parser.add_argument("-D", "--delete_all_templates", help="Deletes all templates of database", action="store_true")
-	parser.add_argument("-i", "--download_image", help="Downloads image and put it into tempDir", action="store_true")
-	parser.add_argument("-s", "--search", help="Searches for given fingerprint into database and display if found", action="store_true")
-	args = parser.parse_args()
-	if args.verbose:
-		display_system_parameters()
-	elif args.enroll:
-		enroll()
-	elif args.delete:
-		delete()
-	elif args.delete_all_templates:
-		delete_all()
-	elif args.download_image:
-		download_image()
-	elif args.search:
-		search()
-	elif args.templates:
-		logging.info("Currently used templates %s/%s" % (f.getTemplateCount(), f.getStorageCapacity()))	
-	else:
-		parser.print_help()
-
-
 def enroll():
 	"""Asks for fingerprint and adds it to database"""
-
 	try:
 		print('Waiting for finger...')
 
@@ -249,12 +194,44 @@ def enroll():
 		print('Operation failed!')
 		print('Exception message: ' + str(e))
 		exit(1)
+
+def init_arg_parse():
+	global parser, usb_device
+	parser = argparse.ArgumentParser(description='Do the given action with fingerprint reader')
 	
-#************************************************************************
-#************************************************************************
+	parser.add_argument("-v", "--verbose", help="Display system parameters of sensor", action="store_true")
+	parser.add_argument("-u", "--usb_device", help="Sets used usb_device which by default is /dev/ttyUSB0", action="store_true", type=str)
+	parser.add_argument("-e", "--enroll", help="Create a new fingerprint model and store it into database", action="store_true")
+	parser.add_argument("-t", "--templates", help="Display current templates count", action="store_true")
+	parser.add_argument("-d", "--delete", help="Deletes a template after asking its position to user (first position is 0)", action="store_true")
+	parser.add_argument("-D", "--delete_all_templates", help="Deletes all templates of database", action="store_true")
+	parser.add_argument("-i", "--download_image", help="Downloads image and put it into tempDir", action="store_true")
+	parser.add_argument("-s", "--search", help="Searches for given fingerprint into database and display if found", action="store_true")
+	args = parser.parse_args()
+	if args.verbose:
+		display_system_parameters()
+	elif args.usb_device:
+		logging.debug("Changing interface to %s" % args.usb_device)
+		usb_device = args.usb_device
+	elif args.enroll:
+		enroll()
+	elif args.delete:
+		delete()
+	elif args.delete_all_templates:
+		delete_all()
+	elif args.download_image:
+		download_image()
+	elif args.search:
+		search()
+	elif args.templates:
+		logging.info("Currently used templates %s/%s" % (f.getTemplateCount(), f.getStorageCapacity()))	
+	else:
+		parser.print_help()
+
+	
 def main():
 	global f
-	init()
 	init_arg_parse()
+	init()
 
 main()
