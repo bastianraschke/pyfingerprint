@@ -200,7 +200,7 @@ def init_arg_parse():
 	parser = argparse.ArgumentParser(description='Do the given action with fingerprint reader')
 	
 	parser.add_argument("-v", "--verbose", help="Display system parameters of sensor", action="store_true")
-	parser.add_argument("-u", "--usb_device", help="Sets used usb_device which by default is /dev/ttyUSB0", action="store_true", type=str)
+	parser.add_argument("-u", "--usb_device", type=str, help="Sets used usb_device which by default is /dev/ttyUSB0")
 	parser.add_argument("-e", "--enroll", help="Create a new fingerprint model and store it into database", action="store_true")
 	parser.add_argument("-t", "--templates", help="Display current templates count", action="store_true")
 	parser.add_argument("-d", "--delete", help="Deletes a template after asking its position to user (first position is 0)", action="store_true")
