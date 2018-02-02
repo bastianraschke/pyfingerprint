@@ -1,19 +1,16 @@
 #!/usr/bin/env python
-
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #
-#       DESCRIPTION: Having an example all in one file including miscancellous possibilites of the 
-#		library and being able to call them from command line
+#       DESCRIPTION: Examples of use of the pyfingerprint library
 #
-#       CALL SAMPLE:
-#               Usage  python2 fingerprint_reader_function.py -h will give you the possibilities
+#       USAGE: pyfingerprint_example.py -h will give you the possibilities
 #
 #       @author: Philippe Gachoud inspired from Bastian Raschke files and examples
 #       @creation: 20180101
 #       @last modification:
 #       @version: 1.0
-#       @URL: $URL
+#       @URL: fingerprint_reader/pyfingerprint/src/files/examples
 #
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
