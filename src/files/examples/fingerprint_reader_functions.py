@@ -28,6 +28,7 @@ import hashlib
 
 # CONSTANTS
 DEFAULT_USB_DEVICE = '/dev/ttyUSB0' 
+TEMPLATES_PAGES_COUNT = 4
 
 # VARIABLES
 global f # Fingerprintreader
@@ -44,8 +45,8 @@ def init():
 		raise ValueError('The given fingerprint sensor password is wrong!')
 
 	except Exception as e:
-	    print('The fingerprint sensor could not be initialized!')
-	    print('Exception message: ' + str(e))
+	    logging.error('The fingerprint sensor could not be initialized!')
+	    logging.error('Exception message: ' + str(e))
 	    exit(1)
 
 def display_system_parameters():
@@ -62,8 +63,8 @@ def delete():
 		if ( f.deleteTemplate(positionNumber) == True ):
 			print('Template deleted!')
 	except Exception as e:
-		print('Operation failed!')
-		print('Exception message: ' + str(e))
+		logging.error('Operation failed!')
+		logging.error('Exception message: ' + str(e))
 		exit(1)
 
 def delete_all():
@@ -75,8 +76,8 @@ def delete_all():
 			f.clearDatabase()
 			print("Templates deleted! %s/%s" % (f.getTemplateCount(), f.getStorageCapacity()))
 	except Exception as e:
-		print('Operation failed!')
-		print('Exception message: ' + str(e))
+		logging.error('Operation failed!')
+		logging.error('Exception message: ' + str(e))
 		exit(1)
 
 def download_image():
@@ -96,8 +97,8 @@ def download_image():
 		print('The image was saved to "' + imageDestination + '".')
 
 	except Exception as e:
-		print('Operation failed!')
-		print('Exception message: ' + str(e))
+		logging.error('Operation failed!')
+		logging.error('Exception message: ' + str(e))
 		exit(1)
 
 def search():
@@ -141,8 +142,8 @@ def search():
 		print('SHA-2 hash of template: ' + hashlib.sha256(characteristics).hexdigest())
 
 	except Exception as e:
-		print('Operation failed!')
-		print('Exception message: ' + str(e))
+		logging.error('Operation failed!')
+		logging.error('Exception message: ' + str(e))
 		exit(1)
 
 def enroll():
@@ -191,8 +192,22 @@ def enroll():
 		print('New template position #' + str(positionNumber))
 
 	except Exception as e:
-		print('Operation failed!')
-		print('Exception message: ' + str(e))
+		logging.error('Operation failed!')
+		logging.error('Exception message: ' + str(e))
+		exit(1)
+
+def display_index_table():
+	"""Displays the index tables of stored fingerprints"""
+	try:
+		logging.info('Currently used templates: ' + str(f.getTemplateCount()) +'/'+ str(f.getStorageCapacity()))
+		for page in range(0, 4):
+			tableIndex = f.getTemplateIndex(page)
+			for i in range(0, len(tableIndex)):
+				print('Template at position #' + str(i) + ' is used: ' + str(tableIndex[i]))
+
+	except Exception as e:
+		logging.error('Operation failed!')
+		logging.error('Exception message: ' + str(e))
 		exit(1)
 
 def init_arg_parse():
@@ -203,16 +218,17 @@ def init_arg_parse():
 	parser.add_argument("-u", "--usb_device", type=str, help="Sets used usb_device which by default is /dev/ttyUSB0")
 	parser.add_argument("-e", "--enroll", help="Create a new fingerprint model and store it into database", action="store_true")
 	parser.add_argument("-t", "--templates", help="Display current templates count", action="store_true")
+	parser.add_argument("-I", "--index_table", help="Display current index table (templates)", action="store_true")
 	parser.add_argument("-d", "--delete", help="Deletes a template after asking its position to user (first position is 0)", action="store_true")
 	parser.add_argument("-D", "--delete_all_templates", help="Deletes all templates of database", action="store_true")
 	parser.add_argument("-i", "--download_image", help="Downloads image and put it into tempDir", action="store_true")
 	parser.add_argument("-s", "--search", help="Searches for given fingerprint into database and display if found", action="store_true")
 	args = parser.parse_args()
-	if args.verbose:
-		display_system_parameters()
-	elif args.usb_device:
+	if args.usb_device:
 		logging.debug("Changing interface to %s" % args.usb_device)
 		usb_device = args.usb_device
+	if args.verbose:
+		display_system_parameters()
 	elif args.enroll:
 		enroll()
 	elif args.delete:
@@ -225,6 +241,8 @@ def init_arg_parse():
 		search()
 	elif args.templates:
 		logging.info("Currently used templates %s/%s" % (f.getTemplateCount(), f.getStorageCapacity()))	
+	elif args.index_table:
+		display_index_table()
 	else:
 		parser.print_help()
 
