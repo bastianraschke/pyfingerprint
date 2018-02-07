@@ -29,6 +29,7 @@ TEMPLATES_PAGES_COUNT = 4
 
 # VARIABLES
 global f # Fingerprintreader
+f = None
 usb_device = DEFAULT_USB_DEVICE
 
 # FUNCTIONS DEFINITION 
@@ -37,14 +38,11 @@ def init():
 	logging.basicConfig(level=logging.DEBUG, stream=sys.stdout, filemode="a+", format="%(asctime)-15s %(levelname)-8s %(message)s")
 	try:
 	    f = PyFingerprint(usb_device, 57600, 0xFFFFFFFF, 0x00000000)
-
 	    if ( f.verifyPassword() == False ):
 		raise ValueError('The given fingerprint sensor password is wrong!')
-
 	except Exception as e:
-	    logging.error('The fingerprint sensor could not be initialized!')
-	    logging.error('Exception message: ' + str(e))
-	    exit(1)
+		logging.exception('The fingerprint sensor could not be initialized')
+	    	exit(1)
 
 def display_system_parameters():
 	""" Display system parameters as logger info level"""
@@ -54,14 +52,13 @@ def display_system_parameters():
 def delete():
 	"""Deletes a template after asking for its position, first position is 0 """
 	try:
-		positionNumber = input('Please enter the template position you want to delete: ')
-		positionNumber = int(positionNumber)
+		position_number = input('Please enter the template position you want to delete: ')
+		position_number = int(position_number)
 
-		if ( f.deleteTemplate(positionNumber) == True ):
+		if ( f.deleteTemplate(position_number) == True ):
 			print('Template deleted!')
 	except Exception as e:
-		logging.error('Operation failed!')
-		logging.error('Exception message: ' + str(e))
+		logging.exception('Could not delete %s' % position_number)
 		exit(1)
 
 def delete_all():
@@ -73,8 +70,7 @@ def delete_all():
 			f.clearDatabase()
 			print("Templates deleted! %s/%s" % (f.getTemplateCount(), f.getStorageCapacity()))
 	except Exception as e:
-		logging.error('Operation failed!')
-		logging.error('Exception message: ' + str(e))
+		logging.exception('Could not delete all')
 		exit(1)
 
 def download_image():
@@ -94,8 +90,7 @@ def download_image():
 		print('The image was saved to "' + imageDestination + '".')
 
 	except Exception as e:
-		logging.error('Operation failed!')
-		logging.error('Exception message: ' + str(e))
+		logging.exception('Could not download image')
 		exit(1)
 
 def search():
@@ -115,21 +110,21 @@ def search():
 		## Searchs template
 		result = f.searchTemplate()
 
-		positionNumber = result[0]
+		position_number = result[0]
 		accuracyScore = result[1]
 
-		if ( positionNumber == -1 ):
+		if ( position_number == -1 ):
 			print('No match found!')
 			exit(0)
 		else:
-			print('Found template at position #' + str(positionNumber))
+			print('Found template at position #' + str(position_number))
 			print('The accuracy score is: ' + str(accuracyScore))
 
 		## OPTIONAL stuff
 		##
 
 		## Loads the found template to charbuffer 1
-		f.loadTemplate(positionNumber, 0x01)
+		f.loadTemplate(position_number, 0x01)
 
 		## Downloads the characteristics of template loaded in charbuffer 1
 		characteristics = str(f.downloadCharacteristics(0x01)).encode('utf-8')
@@ -139,8 +134,7 @@ def search():
 		print('SHA-2 hash of template: ' + hashlib.sha256(characteristics).hexdigest())
 
 	except Exception as e:
-		logging.error('Operation failed!')
-		logging.error('Exception message: ' + str(e))
+		logging.exception('Could not display index table')
 		exit(1)
 
 def enroll():
@@ -158,10 +152,10 @@ def enroll():
 
 		## Checks if finger is already enrolled
 		result = f.searchTemplate()
-		positionNumber = result[0]
+		position_number = result[0]
 
-		if ( positionNumber >= 0 ):
-			print('Template already exists at position #' + str(positionNumber))
+		if ( position_number >= 0 ):
+			print('Template already exists at position #' + str(position_number))
 			exit(0)
 
 		print('Remove finger...')
@@ -184,27 +178,26 @@ def enroll():
 		f.createTemplate()
 
 		## Saves template at new position number
-		positionNumber = f.storeTemplate()
+		position_number = f.storeTemplate()
 		print('Finger enrolled successfully!')
-		print('New template position #' + str(positionNumber))
+		print('New template position #' + str(position_number))
 
 	except Exception as e:
-		logging.error('Operation failed!')
-		logging.error('Exception message: ' + str(e))
+		logging.exception('Could not enroll your fingerprint')
 		exit(1)
 
 def display_index_table():
 	"""Displays the index tables of stored fingerprints"""
 	try:
-		logging.info('Currently used templates: ' + str(f.getTemplateCount()) +'/'+ str(f.getStorageCapacity()))
+		logging.info('Currently used templates: %s/%s' % (f.getTemplateCount(), f.getStorageCapacity()))
 		for page in range(0, 4):
 			tableIndex = f.getTemplateIndex(page)
+			s = "";
 			for i in range(0, len(tableIndex)):
-				print('Template at position #' + str(i) + ' is used: ' + str(tableIndex[i]))
-
+				s = s + "p.%s:index:%s:%s|" % (page, i, tableIndex[i])
+			print(s)
 	except Exception as e:
-		logging.error('Operation failed!')
-		logging.error('Exception message: ' + str(e))
+		logging.exception('Could not display index table')
 		exit(1)
 
 def init_arg_parse():
@@ -246,7 +239,7 @@ def init_arg_parse():
 	
 def main():
 	global f
-	init_arg_parse()
 	init()
+	init_arg_parse()
 
 main()
