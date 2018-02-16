@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #
 #       DESCRIPTION: Examples of use of the pyfingerprint library
 #
@@ -12,7 +11,6 @@
 #       @version: 1.0
 #       @URL: fingerprint_reader/pyfingerprint/src/files/examples
 #
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
 # INCLUDES
@@ -42,7 +40,7 @@ def init():
 		raise ValueError('The given fingerprint sensor password is wrong!')
 	except Exception as e:
 		logging.exception('The fingerprint sensor could not be initialized')
-	    	exit(1)
+	    	raise
 
 def display_system_parameters():
 	""" Display system parameters as logger info level"""
@@ -59,7 +57,7 @@ def delete():
 			print('Template deleted!')
 	except Exception as e:
 		logging.exception('Could not delete %s' % position_number)
-		exit(1)
+		raise
 
 def delete_all():
 	"""Deletes all templates after asking for confirmation"""
@@ -71,7 +69,7 @@ def delete_all():
 			print("Templates deleted! %s/%s" % (f.getTemplateCount(), f.getStorageCapacity()))
 	except Exception as e:
 		logging.exception('Could not delete all')
-		exit(1)
+		raise
 
 def download_image():
 	"""Downloads image of read fingerprint into temp directory"""
@@ -91,13 +89,14 @@ def download_image():
 
 	except Exception as e:
 		logging.exception('Could not download image')
-		exit(1)
+		raise
 
 def search():
 	"""Searches for given fingerprint"""
 	## Tries to search the finger and calculate hash
 	try:
 		print('Waiting for finger...')
+		raise RuntimeError('this is a test exception')
 
 		## Wait that finger is read
 		while ( f.readImage() == False ):
@@ -135,7 +134,7 @@ def search():
 
 	except Exception as e:
 		logging.exception('Could not display index table')
-		exit(1)
+		raise	
 
 def enroll():
 	"""Asks for fingerprint and adds it to database"""
@@ -184,7 +183,7 @@ def enroll():
 
 	except Exception as e:
 		logging.exception('Could not enroll your fingerprint')
-		exit(1)
+		raise
 
 def display_index_table():
 	"""Displays the index tables of stored fingerprints"""
@@ -198,7 +197,7 @@ def display_index_table():
 			print(s)
 	except Exception as e:
 		logging.exception('Could not display index table')
-		exit(1)
+		raise
 
 def init_arg_parse():
 	global parser, usb_device
