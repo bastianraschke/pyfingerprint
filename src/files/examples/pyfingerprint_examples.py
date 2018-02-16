@@ -96,7 +96,6 @@ def search():
 	## Tries to search the finger and calculate hash
 	try:
 		print('Waiting for finger...')
-		raise RuntimeError('this is a test exception')
 
 		## Wait that finger is read
 		while ( f.readImage() == False ):
@@ -238,7 +237,11 @@ def init_arg_parse():
 	
 def main():
 	global f
-	init()
-	init_arg_parse()
+	try:
+		init()
+		init_arg_parse()
+	except Exception:
+		logging.exception('An exception occured during whole process')	
+		exit(1)
 
 main()
