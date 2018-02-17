@@ -1002,7 +1002,7 @@ class PyFingerprint(object):
         else:
             raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
 
-    def deleteTemplate(self, positionNumber, count = 1):
+    def deleteTemplates(self, positionNumber, count = 1):
         """
         Delete templates from fingerprint database. Per default one.
 
@@ -1036,7 +1036,7 @@ class PyFingerprint(object):
         if ( receivedPacketType != FINGERPRINT_ACKPACKET ):
             raise Exception('The received packet is no ack packet!')
 
-        ## DEBUG: Template deleted successful
+        ## DEBUG: Template deleted successfully
         if ( receivedPacketPayload[0] == FINGERPRINT_OK ):
             return True
 
@@ -1227,7 +1227,7 @@ class PyFingerprint(object):
 
         return self.getSystemParameters()[2]
 
-    def generateRandomNumber(self):
+    def getRandomNumber(self):
         """
         Generate a random 32-bit decimal number.
 
@@ -1265,9 +1265,9 @@ class PyFingerprint(object):
         number = number | self.__leftShift(receivedPacketPayload[4], 0)
         return number
 
-    def downloadCharacteristics(self, charBufferIndex = 0x01):
+    def getCharacteristics(self, charBufferIndex = 0x01):
         """
-        Download the finger characteristics of CharBuffer1 or CharBuffer2.
+        Returns the finger characteristics of CharBuffer1 or CharBuffer2.
 
         @param integer(1 byte) charBufferIndex
 
