@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 #
-#       DESCRIPTION: Examples of use of the pyfingerprint library
+#       DESCRIPTION: Examples of using PyFingerprint library
 #
 #       USAGE: pyfingerprint_example.py -h will give you the possibilities
 #
