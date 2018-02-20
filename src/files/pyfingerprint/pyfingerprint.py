@@ -900,11 +900,11 @@ class PyFingerprint(object):
 
     def searchTemplate(self):
         """
-        Search the finger characteristics in CharBuffer in database.
+        Search the finger characteristics from CharBuffer into database.
 
         Return a tuple that contain the following information:
-        0: integer(2 bytes) The position number of found template.
-        1: integer(2 bytes) The accuracy score of found template.
+		0: integer(2 bytes) The position number of found template.
+		1: integer(2 bytes) The accuracy score of found template.
 
         @return tuple
         """
@@ -1002,7 +1002,7 @@ class PyFingerprint(object):
         else:
             raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
 
-    def deleteTemplates(self, positionNumber, count = 1):
+    def deleteTemplate(self, positionNumber, count = 1):
         """
         Delete templates from fingerprint database. Per default one.
 
@@ -1227,7 +1227,7 @@ class PyFingerprint(object):
 
         return self.getSystemParameters()[2]
 
-    def getRandomNumber(self):
+    def generateRandomNumber(self):
         """
         Generate a random 32-bit decimal number.
 
@@ -1265,7 +1265,7 @@ class PyFingerprint(object):
         number = number | self.__leftShift(receivedPacketPayload[4], 0)
         return number
 
-    def getCharacteristics(self, charBufferIndex = 0x01):
+    def downloadCharacteristics(self, charBufferIndex = 0x01):
         """
         Returns the finger characteristics of CharBuffer1 or CharBuffer2.
 
