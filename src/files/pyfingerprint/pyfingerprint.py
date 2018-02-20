@@ -900,7 +900,7 @@ class PyFingerprint(object):
 
     def searchTemplate(self):
         """
-        Search the finger characteristics from CharBuffer into database.
+        Search the finger characteristics from CharBuffer in database.
 
         Return a tuple that contain the following information:
 		0: integer(2 bytes) The position number of found template.

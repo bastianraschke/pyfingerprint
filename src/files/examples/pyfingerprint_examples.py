@@ -219,7 +219,7 @@ def init_arg_parse():
 	parser.add_argument("-D", "--delete_all_templates", help="Deletes all templates of database", action="store_true")
 	parser.add_argument("-i", "--download_image", help="Downloads image and put it into tempDir", action="store_true")
 	parser.add_argument("-s", "--search", help="Searches for given fingerprint into database and display if found", action="store_true")
-	parser.add_argument("-r", "--print_random_number", help="Prints a random generated number", action="store_true")
+	parser.add_argument("-r", "--print_generated_random_number", help="Generates a random number on the fingerprint module and prints it", action="store_true")
 	args = parser.parse_args()
 	if args.usb_device:
 		logging.debug("Changing interface to %s" % args.usb_device)
@@ -240,8 +240,8 @@ def init_arg_parse():
 		logging.info("Currently used templates %s/%s" % (f.getTemplateCount(), f.getStorageCapacity()))	
 	elif args.index_table:
 		display_index_table()
-	elif args.print_random_number:
-		print_random_number()
+	elif args.print_random_generated_number:
+		print_random_generated_number()
 	else:
 		parser.print_help()
 
