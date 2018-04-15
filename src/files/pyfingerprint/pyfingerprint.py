@@ -1323,3 +1323,20 @@ class PyFingerprint(object):
                 completePayload.append(receivedPacketPayload[i])
 
         return completePayload
+
+    def getCharacteristicsFromPositionNumber(self, positionNumber, charBufferIndex = 0x01):
+	"""Returns finger characteristics as 512 integer from given position number
+	@param integer(1 byte) positionNumber
+	
+	@return list""" 
+	self.loadTemplate(positionNumber, charBufferIndex)
+	return self.downloadCharacteristics(charBufferIndex)
+
+    def setPositionNumberFromCharacteristics(self, positionNumber, characteristicsData, charBufferIndex = 0x01):
+	"""Sets template positionNumber with given characteristics as 512 integer 
+	@param integer(1 byte) positionNumber
+	@param characteristicsData (512 integer)
+	@param charBufferIndex ( charBufferIndex as hex 0x01 or 0x02)""" 
+	self.uploadCharacteristics(charBufferIndex, characteristicsData)
+	self.storeTemplate(positionNumber, charBufferIndex)
+	
