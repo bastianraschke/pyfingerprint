@@ -5,7 +5,6 @@
 PyFingerprint
 Copyright (C) 2015 Bastian Raschke <bastian.raschke@posteo.de>
 All rights reserved.
-
 """
 
 import os
@@ -963,9 +962,9 @@ class PyFingerprint(object):
         @param integer(1 byte) charBufferIndex
         @return boolean
         """
-
-        if ( positionNumber < 0x0000 or positionNumber >= self.getStorageCapacity() ):
-            raise ValueError('The given position number is invalid!')
+	storageCapacity = self.getStorageCapacity()
+        if ( positionNumber < 0x0000 or positionNumber >= storageCapacity ):
+            raise ValueError("The given position number is invalid, should be between {} and {}!".format(0x0000, storageCapacity))
 
         if ( charBufferIndex != 0x01 and charBufferIndex != 0x02 ):
             raise ValueError('The given charbuffer number is invalid!')
@@ -994,7 +993,7 @@ class PyFingerprint(object):
             raise Exception('Communication error')
 
         elif ( receivedPacketPayload[0] == FINGERPRINT_ERROR_LOADTEMPLATE ):
-            raise Exception('The template could not be read')
+            raise Exception('The template index {}, charbuffer {} could not be read, maybe there is no fingerprint recorded at this position'.format(positionNumber, charBufferIndex))
 
         elif ( receivedPacketPayload[0] == FINGERPRINT_ERROR_INVALIDPOSITION ):
             raise Exception('Could not load template from that position')
