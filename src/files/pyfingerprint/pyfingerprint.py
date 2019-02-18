@@ -12,6 +12,7 @@ import os
 import serial
 from PIL import Image
 import struct
+import numpy
 
 
 ## Baotou start byte
@@ -677,86 +678,84 @@ class PyFingerprint(object):
         else:
             raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
 
-    def uploadImage(self, imageLocation):
-    """
-    Upload the image of a finger from host computer.
+    def uploadImage(self, imageFilePath):
+        """
+        Upload the image of a finger from host computer.
 
-    @param string imageLocation
-    @return void
-    """
-    locationDirectory = os.path.dirname(imageLocation)
-    if not os.access(locationDirectory, os.R_OK):
-        raise ValueError('The given location directory "' + locationDirectory + '" is not readable!')
+        @param string imageFilePath
+        @return void
+        """
+        locationDirectory = os.path.dirname(imageFilePath)
+        if not os.access(locationDirectory, os.R_OK):
+            raise ValueError('The given location directory "' + locationDirectory + '" is not readable!')
 
-    if not os.path.exists(imageLocation):
-        raise ValueError('File "' + imageLocation + '" does not exist!')
+        if not os.path.exists(imageFilePath):
+            raise ValueError('File "' + imageFilePath + '" does not exist!')
 
-    maxPacketSize = self.getMaxPacketSize()
+        maxPacketSize = self.getMaxPacketSize()
 
-    print("Sending first packet to upload image...") # debug
-    packetPayload = (
-        FINGERPRINT_UPLOADIMAGE,
-    )
+        # Sending first packet to upload image
+        packetPayload = (
+            FINGERPRINT_UPLOADIMAGE,
+        )
 
-    self.__writePacket(FINGERPRINT_COMMANDPACKET, packetPayload)
+        self.__writePacket(FINGERPRINT_COMMANDPACKET, packetPayload)
 
-    ## Get first reply packet
-    receivedPacket = self.__readPacket()
+        # Get first reply packet
+        receivedPacket = self.__readPacket()
 
-    receivedPacketType = receivedPacket[0]
-    receivedPacketPayload = receivedPacket[1]
+        receivedPacketType = receivedPacket[0]
+        receivedPacketPayload = receivedPacket[1]
 
-    if receivedPacketType != FINGERPRINT_ACKPACKET:
-       raise Exception('The received packet is no ack packet!')
-    # DEBUG: The sensor will send follow-up packets
-    if receivedPacketPayload[0] == FINGERPRINT_OK:
-        pass
-    elif receivedPacketPayload[0] == FINGERPRINT_ERROR_COMMUNICATION:
-        raise Exception('Communication error')
-    elif receivedPacketPayload[0] == FINGERPRINT_ERROR_UPLOADIMAGE:
-        raise Exception('Could not upload image')
-    else:
-        raise Exception('Unknown error ' + hex(receivedPacketPayload[0]))
-
-    # Initialize image library
-    imageToUpload = Image.open(imageLocation)
-    imageArray = numpy.array(imageToUpload)
-
-    maxRowLength = max(map(lambda x: len(x), imageArray))
-
-    print("will start sending data packets")
-
-    if maxRowLength <= maxPacketSize:
-        print("sending 1 row of pixels at a time") # debug
-        i = 1
-        for i in range(0, len(imageArray)-1):
-            self.__writePacket(FINGERPRINT_DATAPACKET, imageArray[i])
-        self.__writePacket(FINGERPRINT_ENDDATAPACKET, imageArray[len(imageArray)-1])
-
-    else:
-        # we need to flatten the list of lists into a single list and divide
-        print("flattening pixels' arrays into a list and sending packets with length: " + str(maxPacketSize)) # debug
-        flattenedList = list(imageArray.flatten())
-        packetNbr = len(flattenedList) / maxPacketSize
-
-        if packetNbr <= 1:
-            print("Only one packet to send. Sending...") # debug
-            self.__writePacket(FINGERPRINT_ENDDATAPACKET, flattenedList)
+        if receivedPacketType != FINGERPRINT_ACKPACKET:
+            raise Exception('The received packet is no ack packet!')
+        # DEBUG: The sensor will send follow-up packets
+        if receivedPacketPayload[0] == FINGERPRINT_OK:
+            pass
+        elif receivedPacketPayload[0] == FINGERPRINT_ERROR_COMMUNICATION:
+            raise Exception('Communication error')
+        elif receivedPacketPayload[0] == FINGERPRINT_ERROR_UPLOADIMAGE:
+            raise Exception('Could not upload image')
         else:
-            print("Sending " + str(packetNbr) + " packets. This may take a while ...") # debug / info
+            raise Exception('Unknown error ' + hex(receivedPacketPayload[0]))
+
+        # Initialize image library
+        imageToUpload = Image.open(imageFilePath)
+        imageArray = numpy.array(imageToUpload)
+
+        maxRowLength = max(map(lambda row: len(row), imageArray))
+
+        # will start sending data packets
+
+        if maxRowLength <= maxPacketSize:
+            # sending 1 row of pixels at a time
             i = 1
-            while i < packetNbr:
-                lfrom = (i-1) * maxPacketSize
-                lto = lfrom + maxPacketSize
-                self.__writePacket(FINGERPRINT_DATAPACKET, flattenedList[lfrom:lto])
-                i += 1
-                lfrom = (i-1) * maxPacketSize
-                lto = lfrom + maxPacketSize
-                
-            self.__writePacket(FINGERPRINT_ENDDATAPACKET, flattenedList[lfrom:lto])
-    print("Finished uploading image")
-    # TODO (computation time drawback): download the image from buffer and compare with 'imageArray'
-        
+            for i in range(0, len(imageArray)-1):
+                self.__writePacket(FINGERPRINT_DATAPACKET, imageArray[i])
+            self.__writePacket(FINGERPRINT_ENDDATAPACKET, imageArray[len(imageArray)-1])
+
+        else:
+            # we need to flatten the list of lists into a single list and split into chunks
+            flattenedList = list(imageArray.flatten())
+            packetCount = len(flattenedList) / maxPacketSize
+
+            if packetCount <= 1:
+                # Only one packet to send
+                self.__writePacket(FINGERPRINT_ENDDATAPACKET, flattenedList)
+            else:
+                print("Sending " + str(packetCount) + " packets. This may take a while ...")
+                i = 1
+                while i < packetCount:
+                    lfrom = (i-1) * maxPacketSize
+                    lto = lfrom + maxPacketSize
+                    self.__writePacket(FINGERPRINT_DATAPACKET, flattenedList[lfrom:lto])
+                    i += 1
+                    lfrom = (i-1) * maxPacketSize
+                    lto = lfrom + maxPacketSize
+
+                self.__writePacket(FINGERPRINT_ENDDATAPACKET, flattenedList[lfrom:lto])
+        print("Finished uploading image")
+        # TODO (computation time drawback): download the image from buffer and compare with 'imageArray'
 
     def downloadImage(self, imageDestination):
         """
