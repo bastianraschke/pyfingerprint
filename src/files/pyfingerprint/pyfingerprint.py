@@ -36,6 +36,7 @@ FINGERPRINT_SETSYSTEMPARAMETER = 0x0E
 FINGERPRINT_GETSYSTEMPARAMETERS = 0x0F
 FINGERPRINT_TEMPLATEINDEX = 0x1F
 FINGERPRINT_TEMPLATECOUNT = 0x1D
+FINGERPRINT_HANDSHAKE = 0X17
 
 FINGERPRINT_READIMAGE = 0x01
 
@@ -101,6 +102,8 @@ FINGERPRINT_ERROR_NOTMATCHING = 0x08
 
 FINGERPRINT_ERROR_DOWNLOADIMAGE = 0x0F
 FINGERPRINT_ERROR_DOWNLOADCHARACTERISTICS = 0x0D
+
+FINGERPRINT_ERROR_COMMUNICATIONPORT = 0x1D
 
 ## Unknown error codes
 ##
@@ -419,6 +422,37 @@ class PyFingerprint(object):
         elif ( receivedPacketPayload[0] == FINGERPRINT_ERROR_COMMUNICATION ):
             raise Exception('Communication error')
 
+        else:
+            raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
+
+    def handShake(self):
+        """
+        handshake the fingerprint sensor.
+
+        @return boolean
+        """
+
+        packetPayload = (
+            FINGERPRINT_HANDSHAKE,
+            0
+        )
+
+        self.__writePacket(FINGERPRINT_COMMANDPACKET, packetPayload)
+        receivedPacket = self.__readPacket()
+
+        receivedPacketType = receivedPacket[0]
+        receivedPacketPayload = receivedPacket[1]
+
+        if ( receivedPacketType != FINGERPRINT_ACKPACKET ):
+            raise Exception('The received packet is no ack packet!')
+
+        ## DEBUG: Sensor password is correct
+        if ( receivedPacketPayload[0] == FINGERPRINT_OK ):
+            return True
+
+        elif ( receivedPacketPayload[0] == FINGERPRINT_ERROR_COMMUNICATIONPORT ):
+            raise Exception('Communication port error')
+                
         else:
             raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
 
