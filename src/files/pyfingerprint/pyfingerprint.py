@@ -427,9 +427,16 @@ class PyFingerprint(object):
 
     def handShake(self):
         """
-        handshake the fingerprint sensor.
+        tested on fingerprint FPM10A
 
         @return boolean
+
+        send handshake instruction to fingerprint sensor Confirm that
+        communicate is connect between module and upper monitor.
+
+        if sensor detected and is ok return True
+        else return False.        
+        
         """
 
         packetPayload = (
