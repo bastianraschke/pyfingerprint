@@ -12,6 +12,7 @@ import os
 import serial
 from PIL import Image
 import struct
+import math
 
 
 ## Baotou start byte
@@ -1420,7 +1421,7 @@ class PyFingerprint(object):
             raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
 
         ## Upload data packets
-        packetNbr = len(characteristicsData) / maxPacketSize
+        packetNbr = math.ceil(len(characteristicsData) / float(maxPacketSize))
 
         if ( packetNbr <= 1 ):
             self.__writePacket(FINGERPRINT_ENDDATAPACKET, characteristicsData)
@@ -1433,7 +1434,7 @@ class PyFingerprint(object):
                 i += 1
 
             lfrom = (i-1) * maxPacketSize
-            lto = lfrom + maxPacketSize
+            lto = len(characteristicsData)
             self.__writePacket(FINGERPRINT_ENDDATAPACKET, characteristicsData[lfrom:lto])
 
         ## Verify uploaded characteristics
