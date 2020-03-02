@@ -1388,6 +1388,10 @@ class PyFingerprint(object):
             raise ValueError('The characteristics data is required!')
 
         maxPacketSize = self.getMaxPacketSize()
+        maxDataPacketSize = 32
+
+        ## not sure about this if maxPacketSize == maxDataPacketSize
+        # maxDataPacketSize = maxPacketSize - 2 (checksum length is 2 and it is also calculated in packet size? )
 
         ## Upload command
 
@@ -1421,19 +1425,19 @@ class PyFingerprint(object):
             raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
 
         ## Upload data packets
-        packetNbr = math.ceil(len(characteristicsData) / float(maxPacketSize))
+        packetNbr = math.ceil(len(characteristicsData) / float(maxDataPacketSize))
 
         if ( packetNbr <= 1 ):
             self.__writePacket(FINGERPRINT_ENDDATAPACKET, characteristicsData)
         else:
             i = 1
             while ( i < packetNbr ):
-                lfrom = (i-1) * maxPacketSize
-                lto = lfrom + maxPacketSize
+                lfrom = (i-1) * maxDataPacketSize
+                lto = lfrom + maxDataPacketSize
                 self.__writePacket(FINGERPRINT_DATAPACKET, characteristicsData[lfrom:lto])
                 i += 1
 
-            lfrom = (i-1) * maxPacketSize
+            lfrom = (i-1) * maxDataPacketSize
             lto = len(characteristicsData)
             self.__writePacket(FINGERPRINT_ENDDATAPACKET, characteristicsData[lfrom:lto])
 
