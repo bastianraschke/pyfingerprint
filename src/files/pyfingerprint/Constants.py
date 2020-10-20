@@ -1,0 +1,117 @@
+# ------------------------------------------------------------------------------
+#  Created by Tyler Stegmaier.
+#  Property of TrueLogic Company.
+#  Copyright (c) 2020.
+# ------------------------------------------------------------------------------
+
+## Baotou start byte
+START_CODE = 0xEF01
+
+## Packet identification
+##
+
+COMMAND_PACKET = 0x01
+
+ACK_PACKET = 0x07
+DATA_PACKET = 0x02
+END_DATA_PACKET = 0x08
+
+## Instruction codes
+##
+
+VERIFY_PASSWORD = 0x13
+SET_PASSWORD = 0x12
+SET_ADDRESS = 0x15
+SET_SYSTEM_PARAMETER = 0x0E
+GET_SYSTEM_PARAMETERS = 0x0F
+TEMPLATE_INDEX = 0x1F
+TEMPLATE_COUNT = 0x1D
+
+READ_IMAGE = 0x01
+
+## Note: The documentation mean upload to host computer.
+DOWNLOAD_IMAGE = 0x0A
+
+CONVERT_IMAGE = 0x02
+
+CREATE_TEMPLATE = 0x05
+STORE_TEMPLATE = 0x06
+SEARCH_TEMPLATE = 0x04
+LOAD_TEMPLATE = 0x07
+DELETE_TEMPLATE = 0x0C
+
+CLEAR_DATABASE = 0x0D
+GENERATE_RANDOM_NUMBER = 0x14
+COMPARE_CHARACTERISTICS = 0x03
+
+## Note: The documentation mean download from host computer.
+UPLOAD_CHARACTERISTICS = 0x09
+
+## Note: The documentation mean upload to host computer.
+DOWNLOAD_CHARACTERISTICS = 0x08
+
+## Parameters of setSystemParameter()
+##
+
+SET_SYSTEM_PARAMETER_BAUDRATE = 4
+SET_SYSTEM_PARAMETER_SECURITY_LEVEL = 5
+SET_SYSTEM_PARAMETER_PACKAGE_SIZE = 6
+
+## Packet reply confirmations
+##
+
+OK = 0x00
+ERROR_COMMUNICATION = 0x01
+
+ERROR_WRONG_PASSWORD = 0x13
+
+ERROR_INVALID_REGISTER = 0x1A
+
+ERROR_NO_FINGER = 0x02
+ERROR_READ_IMAGE = 0x03
+
+ERROR_MESSY_IMAGE = 0x06
+ERROR_FEW_FEATURE_POINTS = 0x07
+ERROR_INVALID_IMAGE = 0x15
+
+ERROR_CHARACTERISTICS_MISMATCH = 0x0A
+
+ERROR_INVALID_POSITION = 0x0B
+ERROR_FLASH = 0x18
+
+ERROR_NO_TEMPLATE_FOUND = 0x09
+
+ERROR_LOAD_TEMPLATE = 0x0C
+
+ERROR_DELETE_TEMPLATE = 0x10
+
+ERROR_CLEAR_DATABASE = 0x11
+
+ERROR_NO_TMATCHING = 0x08
+
+ERROR_DOWNLOAD_IMAGE = 0x0F
+ERROR_DOWNLOAD_CHARACTERISTICS = 0x0D
+
+## Unknown error codes
+##
+
+ADDR_CODE = 0x20
+PASS_VERIFY = 0x21
+
+PACKET_RESPONSE_FAIL = 0x0E
+
+ERROR_TIMEOUT = 0xFF
+ERROR_BAD_PACKET = 0xFE
+
+## Char buffers
+##
+
+CHAR_BUFFER1 = 0x01
+"""
+Char buffer 1
+"""
+
+CHAR_BUFFER2 = 0x02
+"""
+Char buffer 2
+"""
