@@ -169,7 +169,7 @@ class PyFingerPrint(object):
     # dict(port=None, baudrate=DefaultBaudRate, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None,
     #      xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None, exclusive=None, writeTimeout=None, interCharTimeout=None)
 
-    def __init__(self, Serial: serial.Serial, *, address: hex = 0xFFFFFFFF, password: hex = 0x00000000):
+    def __init__(self, Serial: serial.Serial = None, *, address: hex = 0xFFFFFFFF, password: hex = 0x00000000):
         """
             Constructor
 
@@ -185,9 +185,7 @@ class PyFingerPrint(object):
         self._password = password
         self.__call__(Serial)
     def __call__(self, ser: serial.Serial):
-        print('__serial__', ser)
         self._serial = ser
-        self._CommSettings = self._serial.get_settings()
         return self
     def __enter__(self):
         if not self.verifyPassword():
@@ -405,7 +403,6 @@ class PyFingerPrint(object):
                 self.__rightShift(self._password, 0),
                 )
 
-        print('__test__')
         self.__writePacket(COMMAND_PACKET, packetPayload)
         receivedPacket = self.__readPacket()
 
