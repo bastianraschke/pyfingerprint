@@ -17,13 +17,12 @@ Modified library:
 https://github.com/Jakar510/pyfingerprint/blob/Development/src/files/pyfingerprint/pyfingerprint.py
 """
 
-import functools
 import hashlib
 import os
 import struct
 import time
 from multiprocessing.connection import Connection
-from typing import Any, List, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 import serial
 from PIL import Image
@@ -35,28 +34,28 @@ from .Constants import *
 
 __all__ = ['PyFingerPrint', 'Authentication']
 
-def _ChangeSerialSettings(func, tag: str = '__ChangeSerialSettings__'):
-    @functools.wraps(func)
-    def wrapped(self, *args, **kwargs):
-        args_repr = [repr(a) for a in args]  # 1
-        kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]  # 2
-        signature = ", ".join(args_repr + kwargs_repr)  # 3
-        print(f"\n{tag}.Calling {func.__name__}({signature})")
-        if self.__external_serial:
-            # self.__serial.close()
-            self.__serial.apply_settings(self.__CommSettings)
-            # self.__serial.open()
-            print(func.__name__)
-
-            result = func(self, *args, **kwargs)
-            # self.__serial.close()
-            self.__serial.apply_settings(self._oldSettings)
-            # self.__serial.open()
-        else:
-            result = func(self, *args, **kwargs)
-        print(f"{func.__name__!r} returned {result!r}\n")  # 4
-        return result
-    return wrapped
+# def _ChangeSerialSettings(func, tag: str = '__ChangeSerialSettings__'):
+#     @functools.wraps(func)
+#     def wrapped(self, *args, **kwargs):
+#         args_repr = [repr(a) for a in args]  # 1
+#         kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]  # 2
+#         signature = ", ".join(args_repr + kwargs_repr)  # 3
+#         print(f"\n{tag}.Calling {func.__name__}({signature})")
+#         if self.__external_serial:
+#             # self._serial.close()
+#             self._serial.apply_settings(self._CommSettings)
+#             # self._serial.open()
+#             print(func.__name__)
+#
+#             result = func(self, *args, **kwargs)
+#             # self._serial.close()
+#             self._serial.apply_settings(self._oldSettings)
+#             # self._serial.open()
+#         else:
+#             result = func(self, *args, **kwargs)
+#         print(f"{func.__name__!r} returned {result!r}\n")  # 4
+#         return result
+#     return wrapped
 
 
 class Authentication(object):
@@ -137,38 +136,43 @@ class SystemParameters(object):
     def ToTuple(self) -> tuple: return self.statusRegister, self.systemID, self.storageCapacity, self.securityLevel, self.deviceAddress, self.packetLength, self.baudRate
 
 
+class Record(dict):
+    def __init__(self, pos: int, hashed: str, characteristics: List[int]):
+        super().__init__(position_number=pos, hashed=hashed, characteristics=characteristics)
+
+    @property
+    def position_number(self) -> int: return self.get('position_number')
+    @property
+    def hashed(self) -> str: return self.get('hashed')
+    @property
+    def characteristics(self) -> List[int]: return self.get('characteristics')
 
 default_port: str = '/dev/ttyS0'
 class PyFingerPrint(object):
     """
     A python written library for the ZhianTec ZFM-20 fingerprint sensor.
 
-    @attribute integer(4 bytes) __address
+    @attribute integer(4 bytes) _address
     Address to connect to sensor.
 
-    @attribute integer(4 bytes) __password
+    @attribute integer(4 bytes) _password
     Password to connect to sensor.
 
-    @attribute Serial __serial
+    @attribute Serial _serial
     UART serial connection via PySerial.
     """
-    __address: hex = None
-    __password: hex = None
-    __external_serial: bool = False
-    __port: str = None
-    __sensor_settings: SystemParameters or None = None
-    __serial: serial.Serial or None = None
-    __defaultBaudRate__ = 57600
-    __CommSettings: dict
-    # dict(port=None, baudrate=__defaultBaudRate__, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None,
+    _address: hex = None
+    _password: hex = None
+    _sensor_settings: SystemParameters or None = None
+    _serial: serial.Serial or None = None
+    DefaultBaudRate = 57600
+    # dict(port=None, baudrate=DefaultBaudRate, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None,
     #      xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None, exclusive=None, writeTimeout=None, interCharTimeout=None)
 
-    def __init__(self, *, port: str = None, address: hex = 0xFFFFFFFF, password: hex = 0x00000000, Serial: serial.Serial = None, baudRate: int = None):
+    def __init__(self, Serial: serial.Serial, *, address: hex = 0xFFFFFFFF, password: hex = 0x00000000):
         """
             Constructor
 
-        :param port: string
-        :param baudRate: integer
         :param address: integer(4 bytes)
         :param password: integer(4 bytes)
         """
@@ -176,67 +180,30 @@ class PyFingerPrint(object):
         # BaudRate: int = 57600,  if BaudRate < 9600 or BaudRate > 115200 or BaudRate % 9600 != 0: raise ValueError('The given baudrate is invalid!')
         if address < 0x00000000 or address > 0xFFFFFFFF: raise ValueError('The given address is invalid!')
         if password < 0x00000000 or password > 0xFFFFFFFF: raise ValueError('The given password is invalid!')
-        if baudRate is None: baudRate = self.__defaultBaudRate__
 
-        self.__address = address
-        self.__password = password
-
-        # Initialize PySerial connection
+        self._address = address
+        self._password = password
         self.__call__(Serial)
-        # if Serial is not None:
-        #     self.__serial = Serial
-        #     self.__CommSettings = self.__serial.get_settings()
-        #     self.setBaudRate(self.__serial.baudrate or baudRate)
-        #     port = self.__serial.port
-        # else:
-        #     self.__CommSettings.update(baudrate=baudRate)
-
-        self.__port = port or default_port
-
+    def __call__(self, ser: serial.Serial):
+        print('__serial__', ser)
+        self._serial = ser
+        self._CommSettings = self._serial.get_settings()
+        return self
+    def __enter__(self):
         if not self.verifyPassword():
             raise ValueError('The given fingerprint sensor password is wrong!')
 
         self.UpdateSensorSettings()
-    def __del__(self):
-        """ Destructor: Close connection if still established """
-        if self.__serial is not None and self.__serial.isOpen():
-            self.__serial.close()
-    def __enter__(self):
-        if not self.__external_serial:
-            self.__serial = serial.Serial(port=self.__port, **self.__CommSettings)
-
         return self
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__sensor_settings = None
-        if not self.__external_serial:
-            self.__serial.close()
-            self.__serial = None
-    def __call__(self, ser: serial.Serial = None):
-        """
-            pfp = PyFingerPrint()
-            with pfp(ser=serial.Serial()) as fp:
-                ...
-
-        :param ser:
-        :return: PyFingerPrint
-        """
-
-        if ser is None:
-            self.__external_serial = False
-            return self
-
-        self.__external_serial = True
-        self.__serial = ser
-        self.__CommSettings = self.__serial.get_settings()
-        return self
+    def __exit__(self, exc_type, exc_val, exc_tb): self.Close()
+    def __del__(self): self.Close()
+    def Close(self):
+        """ Close connection if still established """
+        if self._serial is not None and self._serial.isOpen(): self._serial.close()
+        self._sensor_settings = None
 
     @property
-    def Serial(self): return self.__serial
-    def ResetSerial(self) -> serial.Serial or None:
-        self.__CommSettings = self.__serial.get_settings()
-        if self.__serial.isOpen(): self.__serial.close()
-        self.__serial = serial.Serial(**self.__CommSettings)
-        return self.__serial
+    def Serial(self): return self._serial
 
     @staticmethod
     def __rightShift(n: int or bytes, x: int or bytes) -> int:
@@ -323,33 +290,33 @@ class PyFingerPrint(object):
         """
 
         ## Write header (one byte at once)
-        self.__serial.write(self.__byteToString(self.__rightShift(START_CODE, 8)))
-        self.__serial.write(self.__byteToString(self.__rightShift(START_CODE, 0)))
+        self._serial.write(self.__byteToString(self.__rightShift(START_CODE, 8)))
+        self._serial.write(self.__byteToString(self.__rightShift(START_CODE, 0)))
 
-        self.__serial.write(self.__byteToString(self.__rightShift(self.__address, 24)))
-        self.__serial.write(self.__byteToString(self.__rightShift(self.__address, 16)))
-        self.__serial.write(self.__byteToString(self.__rightShift(self.__address, 8)))
-        self.__serial.write(self.__byteToString(self.__rightShift(self.__address, 0)))
+        self._serial.write(self.__byteToString(self.__rightShift(self._address, 24)))
+        self._serial.write(self.__byteToString(self.__rightShift(self._address, 16)))
+        self._serial.write(self.__byteToString(self.__rightShift(self._address, 8)))
+        self._serial.write(self.__byteToString(self.__rightShift(self._address, 0)))
 
-        self.__serial.write(self.__byteToString(packetType))
+        self._serial.write(self.__byteToString(packetType))
 
         ## The packet length = package payload (n bytes) + checksum (2 bytes)
         packetLength = len(packetPayload) + 2
 
-        self.__serial.write(self.__byteToString(self.__rightShift(packetLength, 8)))
-        self.__serial.write(self.__byteToString(self.__rightShift(packetLength, 0)))
+        self._serial.write(self.__byteToString(self.__rightShift(packetLength, 8)))
+        self._serial.write(self.__byteToString(self.__rightShift(packetLength, 0)))
 
         ## The packet checksum = packet type (1 byte) + packet length (2 bytes) + payload (n bytes)
         packetChecksum = packetType + self.__rightShift(packetLength, 8) + self.__rightShift(packetLength, 0)
 
         ## Write payload
         for i in range(0, len(packetPayload)):
-            self.__serial.write(self.__byteToString(packetPayload[i]))
+            self._serial.write(self.__byteToString(packetPayload[i]))
             packetChecksum += packetPayload[i]
 
         ## Write checksum (2 bytes)
-        self.__serial.write(self.__byteToString(self.__rightShift(packetChecksum, 8)))
-        self.__serial.write(self.__byteToString(self.__rightShift(packetChecksum, 0)))
+        self._serial.write(self.__byteToString(self.__rightShift(packetChecksum, 8)))
+        self._serial.write(self.__byteToString(self.__rightShift(packetChecksum, 0)))
     def __readPacket(self) -> Tuple[Any, List[bytes or int]]:
         """
         Receives a packet from the sensor.
@@ -368,7 +335,7 @@ class PyFingerPrint(object):
 
         while True:
             ## Ready one byte
-            receivedFragment = self.__serial.read()
+            receivedFragment = self._serial.read()
 
             if len(receivedFragment) != 0:
                 receivedFragment = self.__stringToByte(receivedFragment)
@@ -432,12 +399,13 @@ class PyFingerPrint(object):
 
         packetPayload = (
                 VERIFY_PASSWORD,
-                self.__rightShift(self.__password, 24),
-                self.__rightShift(self.__password, 16),
-                self.__rightShift(self.__password, 8),
-                self.__rightShift(self.__password, 0),
+                self.__rightShift(self._password, 24),
+                self.__rightShift(self._password, 16),
+                self.__rightShift(self._password, 8),
+                self.__rightShift(self._password, 0),
                 )
 
+        print('__test__')
         self.__writePacket(COMMAND_PACKET, packetPayload)
         receivedPacket = self.__readPacket()
 
@@ -500,7 +468,7 @@ class PyFingerPrint(object):
 
         ## DEBUG: Password set was successful
         if receivedPacketPayload[0] == OK:
-            self.__password = newPassword
+            self._password = newPassword
             return True
 
         elif receivedPacketPayload[0] == ERROR_COMMUNICATION:
@@ -546,7 +514,7 @@ class PyFingerPrint(object):
 
         ## DEBUG: Address set was successful
         if receivedPacketPayload[0] == OK:
-            self.__address = newAddress
+            self._address = newAddress
             return True
 
         elif receivedPacketPayload[0] == ERROR_COMMUNICATION:
@@ -570,12 +538,6 @@ class PyFingerPrint(object):
         if baudRate % 9600 != 0:
             raise ValueError("Invalid baud rate")
 
-        if self.__serial is not None and self.__serial.baudrate != baudRate:
-            self.setSystemParameter(SET_SYSTEM_PARAMETER_BAUDRATE, baudRate // 9600)
-            self.__serial.close()
-            self.__CommSettings['baudRate'] = baudRate
-            self.__serial = serial.Serial(port=self.__port, **self.__CommSettings)
-
         return self.setSystemParameter(SET_SYSTEM_PARAMETER_BAUDRATE, baudRate // 9600)
     def getBaudRate(self) -> int:
         """
@@ -588,8 +550,8 @@ class PyFingerPrint(object):
             Exception: if any error occurs
         """
 
-        if self.__sensor_settings is None: self.UpdateSensorSettings()
-        return self.__sensor_settings.baudRate * 9600
+        if self._sensor_settings is None: self.UpdateSensorSettings()
+        return self._sensor_settings.baudRate * 9600
         # return self.getSystemParameters()[6] * 9600
 
     def setSecurityLevel(self, securityLevel) -> bool:
@@ -636,8 +598,8 @@ class PyFingerPrint(object):
             Exception: if any error occurs
         """
 
-        if self.__sensor_settings is None: self.UpdateSensorSettings()
-        packetMaxSizeType = self.__sensor_settings.packetLength
+        if self._sensor_settings is None: self.UpdateSensorSettings()
+        packetMaxSizeType = self._sensor_settings.packetLength
 
         try:
             packetSizes = [32, 64, 128, 256]
@@ -649,7 +611,7 @@ class PyFingerPrint(object):
         return packetSize
 
     def UpdateSensorSettings(self):
-        self.__sensor_settings = SystemParameters(self.getSystemParameters())
+        self._sensor_settings = SystemParameters(self.getSystemParameters())
     def setSystemParameter(self, parameterNumber: int, parameterValue: int) -> bool:
         """
         Set a system parameter of the sensor.
@@ -770,13 +732,13 @@ class PyFingerPrint(object):
             Exception: if any error occurs
         """
 
-        if self.__sensor_settings is None: self.UpdateSensorSettings()
-        return self.__sensor_settings.storageCapacity
+        if self._sensor_settings is None: self.UpdateSensorSettings()
+        return self._sensor_settings.storageCapacity
         # return self.getSystemParameters()[2]
     @property
     def Capacity(self):
-        if self.__sensor_settings is None: self.UpdateSensorSettings()
-        return self.__sensor_settings.storageCapacity
+        if self._sensor_settings is None: self.UpdateSensorSettings()
+        return self._sensor_settings.storageCapacity
 
     def getSecurityLevel(self):
         """
@@ -789,13 +751,13 @@ class PyFingerPrint(object):
             Exception: if any error occurs
         """
 
-        if self.__sensor_settings is None: self.UpdateSensorSettings()
-        return self.__sensor_settings.securityLevel
+        if self._sensor_settings is None: self.UpdateSensorSettings()
+        return self._sensor_settings.securityLevel
         # return self.getSystemParameters()[3]
 
 
 
-    def storeTemplate(self, positionNumber=-1, charBufferNumber=CHAR_BUFFER1) -> int:
+    def storeTemplate(self, positionNumber=-1, *, charBufferNumber=CHAR_BUFFER1) -> int:
         """
         Stores a template from the specified char buffer at the given position.
 
@@ -821,8 +783,7 @@ class PyFingerPrint(object):
                 templateIndex = self.getTemplateIndex(page)
 
                 for i in range(0, len(templateIndex)):
-                    ## Index not used?
-                    if templateIndex[i] == False:
+                    if not templateIndex[i]:  ## Index not used?
                         positionNumber = (len(templateIndex) * page) + i
                         break
 
@@ -926,7 +887,7 @@ class PyFingerPrint(object):
 
         else:
             raise Exception('Unknown error ' + hex(receivedPacketPayload[0]))
-    def loadTemplate(self, positionNumber, charBufferNumber=CHAR_BUFFER1) -> bool:
+    def loadTemplate(self, positionNumber, *, charBufferNumber=CHAR_BUFFER1) -> bool:
         """
         Loads an existing template specified by position number to specified char buffer.
 
@@ -1032,43 +993,6 @@ class PyFingerPrint(object):
 
         ## DEBUG: Could not delete template
         elif receivedPacketPayload[0] == ERROR_DELETE_TEMPLATE:
-            return False
-
-        else:
-            raise Exception('Unknown error ' + hex(receivedPacketPayload[0]))
-    def clearDatabase(self) -> bool:
-        """
-        Deletes all templates from the fingeprint database.
-
-        Returns:
-            True if successful or False otherwise.
-
-        Raises:
-            Exception: if any error occurs
-        """
-
-        packetPayload = (
-                CLEAR_DATABASE,
-                )
-
-        self.__writePacket(COMMAND_PACKET, packetPayload)
-        receivedPacket = self.__readPacket()
-
-        receivedPacketType = receivedPacket[0]
-        receivedPacketPayload = receivedPacket[1]
-
-        if receivedPacketType != ACK_PACKET:
-            raise Exception('The received packet is no ack packet!')
-
-        ## DEBUG: Database cleared successful
-        if receivedPacketPayload[0] == OK:
-            return True
-
-        elif receivedPacketPayload[0] == ERROR_COMMUNICATION:
-            raise Exception('Communication error')
-
-        ## DEBUG: Could not clear database
-        elif receivedPacketPayload[0] == ERROR_CLEAR_DATABASE:
             return False
 
         else:
@@ -1459,7 +1383,7 @@ class PyFingerPrint(object):
 
         else:
             raise Exception('Unknown error ' + hex(receivedPacketPayload[0]))
-    def uploadCharacteristics(self, charBufferNumber=CHAR_BUFFER1, characteristicsData=[0]) -> bool:
+    def uploadCharacteristics(self, characteristicsData: List[int], *, charBufferNumber=CHAR_BUFFER1) -> bool:
         """
         Uploads finger characteristics to specified char buffer.
 
@@ -1478,11 +1402,9 @@ class PyFingerPrint(object):
             Exception: if any error occurs
         """
 
-        if charBufferNumber != CHAR_BUFFER1 and charBufferNumber != CHAR_BUFFER2:
-            raise ValueError('The given char buffer number is invalid!')
+        if charBufferNumber != CHAR_BUFFER1 and charBufferNumber != CHAR_BUFFER2: raise ValueError('The given char buffer number is invalid!')
 
-        if characteristicsData == [0]:
-            raise ValueError('The characteristics data is required!')
+        if not characteristicsData: raise ValueError('The characteristics data is required!')
 
         maxPacketSize = self.getMaxPacketSize()
 
@@ -1531,9 +1453,9 @@ class PyFingerPrint(object):
             self.__writePacket(END_DATA_PACKET, characteristicsData[lfrom:lto])
 
         ## Verify uploaded characteristics
-        characterics = self.downloadCharacteristics(charBufferNumber)
+        characterics = self.downloadCharacteristics(charBufferNumber=charBufferNumber)
         return characterics == characteristicsData
-    def downloadCharacteristics(self, charBufferNumber=CHAR_BUFFER1) -> list:
+    def downloadCharacteristics(self, *, charBufferNumber=CHAR_BUFFER1) -> list:
         """
         Downloads the finger characteristics from the specified char buffer.
 
@@ -1594,19 +1516,76 @@ class PyFingerPrint(object):
 
         return completePayload
 
-    def GetRecord(self, position_number: int, charBufferNumber: int = CHAR_BUFFER1) -> list:
+    def UploadDatabase(self, db: Union[Dict[int, Union[List[int], Record]], Union[List[int], Record]]):
+        if isinstance(db, dict): db = list(db.values())
+        assert (isinstance(db, list))
+
+        if not self.ClearDatabase(): raise ValueError('ClearDatabase Failed')
+        if len(db) >= self.Capacity: raise ValueError('Too Many Records for this device')
+
+        for i, chars in enumerate(db): self.SetRecord(i, chars)
+    def DownloadDataBase(self) -> List[Record]:
+        d: List[Record] = []
+
+        for i in range(self.Size):
+            d.append(self.GetRecord(i))
+
+        return d
+    def ClearDatabase(self) -> bool:
+        """
+        Deletes all templates from the fingeprint database.
+
+        Returns:
+            True if successful or False otherwise.
+
+        Raises:
+            Exception: if any error occurs
+        """
+
+        packetPayload = (
+                CLEAR_DATABASE,
+                )
+
+        self.__writePacket(COMMAND_PACKET, packetPayload)
+        receivedPacket = self.__readPacket()
+
+        receivedPacketType = receivedPacket[0]
+        receivedPacketPayload = receivedPacket[1]
+
+        if receivedPacketType != ACK_PACKET:
+            raise Exception('The received packet is no ack packet!')
+
+        ## DEBUG: Database cleared successful
+        if receivedPacketPayload[0] == OK:
+            return True
+
+        elif receivedPacketPayload[0] == ERROR_COMMUNICATION:
+            raise Exception('Communication error')
+
+        ## DEBUG: Could not clear database
+        elif receivedPacketPayload[0] == ERROR_CLEAR_DATABASE:
+            return False
+
+        else:
+            raise Exception('Unknown error ' + hex(receivedPacketPayload[0]))
+
+    def SetRecord(self, position_number: int, chars: Union[List[int], Record]) -> int:
+        if isinstance(chars, Record): chars = chars.characteristics
+        if not isinstance(chars, list) and all(isinstance(c, int) for c in chars): raise TypeError(f'Expected List[int] got {type(chars)}')
+        if self.uploadCharacteristics(chars): return self.storeTemplate(position_number)
+    def GetRecord(self, position_number: int, *, charBufferNumber: int = CHAR_BUFFER1) -> Record:
         """
             returns a list of the HASH and the fingerprint Characteristics.
         :param position_number:
         :param charBufferNumber:
         :return: [position_number, hashed, characteristics]
         """
-        self.loadTemplate(position_number, charBufferNumber)  # Downloads the characteristics of template loaded in char buffer 1
-        characteristics = self.downloadCharacteristics(charBufferNumber)  # Downloads the characteristics of template loaded in char buffer 1
-        hashed = hashlib.sha256(str(characteristics).encode('utf-8')).hexdigest()  # Hashes characteristics of template
-        return [position_number, hashed, characteristics]
+        self.loadTemplate(position_number, charBufferNumber=charBufferNumber)  # Downloads the characteristics of template loaded in char buffer 1
+        characteristics = self.downloadCharacteristics(charBufferNumber=charBufferNumber)  # Downloads the characteristics of template loaded in char buffer 1
+        hashed = hashlib.sha256(str(characteristics).encode()).hexdigest()  # Hashes characteristics of template
+        return Record(position_number, hashed, characteristics)
 
-    def ScanFinger(self, charBufferNumber: int = CHAR_BUFFER1, MinimumAccuracyScore: int = 75) -> Authentication:
+    def ScanFinger(self, MinimumAccuracyScore: int, *, charBufferNumber: int = CHAR_BUFFER1 ) -> Authentication:
         while not self.readImage(): pass
         self.convertImage(charBufferNumber)
         pos, score = self.searchTemplate()
@@ -1614,15 +1593,15 @@ class PyFingerPrint(object):
             return Authentication(True, pos, score)
 
         return Authentication(False, -1, -1)
-    def ScanFingerVerify(self, charBufferNumber: int = CHAR_BUFFER1) -> (int, int or float):
+    def ScanFingerVerify(self, *, charBufferNumber: int = CHAR_BUFFER1) -> (int, int or float):
         while not self.readImage(): pass
         self.convertImage(charBufferNumber)
         return self.searchTemplate()
 
-    def reset_input_buffer(self): self.__serial.reset_input_buffer()
+    def reset_input_buffer(self): self._serial.reset_input_buffer()
 
     def _ThrowIfSerialIsNone(self):
-        if self.__serial is None:
+        if self._serial is None:
             raise serial.SerialException('Serial Port not active. must use Context ProcessManager and/or pass in a serial object')
 
     @staticmethod
@@ -1643,22 +1622,23 @@ class PyFingerPrint(object):
         if endMessage: conm.send(endMessage)
 
 
-
-if __name__ == '__main__':
-    def _Test():
-        print('__TestPyFingerprint__')
-        # ser = serial.Serial(port=port, baudrate=57600)
-        # with serial.Serial(port='com3', baudrate=57600) as ser:
-        with PyFingerPrint() as fpm:  # Serial=ser
+def Test():
+    print('__TestPyFingerprint__')
+    # ser = serial.Serial(port=port, baudrate=57600)
+    # with serial.Serial(port='com3', baudrate=57600) as ser:
+    from TkinterExtensions import PlatformIsLinux
+    with serial.Serial(port=default_port if PlatformIsLinux else 'com4', baudrate=PyFingerPrint.DefaultBaudRate) as ser:  # Serial=ser
+        with PyFingerPrint(ser) as fpm:  # Serial=ser
             # f = PyFingerPrint(port=port)  # , Serial=ser)
 
             # Gets some sensor information
             # print('Currently used templates: ' + str(f.getTemplateCount()) + '/' + str(f.getStorageCapacity()))
+
             print(fpm.getSystemParameters())
             print('Waiting for finger...')
 
             while not fpm.readImage(): pass  # Wait that finger is read again
-            fpm.convertImage(0x01)  # Converts read image to characteristics and stores It in char buffer 1
+            fpm.convertImage()  # Converts read image to characteristics and stores It in char buffer 1
 
             result = fpm.searchTemplate()  # Checks if finger is already enrolled
             positionNumber = result[0]
@@ -1671,7 +1651,7 @@ if __name__ == '__main__':
             print('Waiting for same finger again...')
 
             while not fpm.readImage(): pass  # Wait that finger is read again
-            fpm.convertImage(0x02)  # Converts read image to characteristics and stores It in char buffer 2
+            fpm.convertImage(CHAR_BUFFER2)  # Converts read image to characteristics and stores It in char buffer 2
 
             if fpm.compareCharacteristics() == 0:  # Compares the charbuffers
                 raise Exception('Fingers do not match')
@@ -1682,7 +1662,7 @@ if __name__ == '__main__':
             print('New template position #' + str(positionNumber))
 
             while not fpm.readImage(): pass
-            fpm.convertImage(0x01)  # Converts read image to characteristics and stores It in char buffer 1
+            fpm.convertImage()  # Converts read image to characteristics and stores It in char buffer 1
             result = fpm.searchTemplate()  # Searches template
 
             positionNumber = result[0]
@@ -1702,4 +1682,7 @@ if __name__ == '__main__':
             # f.downloadImage(imageDestination)
 
             print('f.generateRandomNumber(): ', fpm.generateRandomNumber())
-    _Test()
+
+
+if __name__ == '__main__':
+    Test()
