@@ -168,7 +168,7 @@ class PyFingerPrint(object):
     DefaultBaudRate = 57600
     # dict(port=None, baudrate=DefaultBaudRate, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None,
     #      xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None, exclusive=None, writeTimeout=None, interCharTimeout=None)
-
+    _DefaultSerialSettings = dict(baudrate=DefaultBaudRate, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=0)
     def __init__(self, Serial: serial.Serial = None, *, address: hex = 0xFFFFFFFF, password: hex = 0x00000000):
         """
             Constructor
@@ -176,7 +176,6 @@ class PyFingerPrint(object):
         :param address: integer(4 bytes)
         :param password: integer(4 bytes)
         """
-
         # BaudRate: int = 57600,  if BaudRate < 9600 or BaudRate > 115200 or BaudRate % 9600 != 0: raise ValueError('The given baudrate is invalid!')
         if address < 0x00000000 or address > 0xFFFFFFFF: raise ValueError('The given address is invalid!')
         if password < 0x00000000 or password > 0xFFFFFFFF: raise ValueError('The given password is invalid!')
@@ -200,6 +199,8 @@ class PyFingerPrint(object):
         if self._serial is not None and self._serial.isOpen(): self._serial.close()
         self._sensor_settings = None
 
+    @staticmethod
+    def DefaultSerialSettings() -> dict: return PyFingerPrint._DefaultSerialSettings.copy()
     @property
     def Serial(self): return self._serial
 
@@ -1402,6 +1403,7 @@ class PyFingerPrint(object):
         if charBufferNumber != CHAR_BUFFER1 and charBufferNumber != CHAR_BUFFER2: raise ValueError('The given char buffer number is invalid!')
 
         if not characteristicsData: raise ValueError('The characteristics data is required!')
+        if not isinstance(characteristicsData, list) or not all(isinstance(c, int) for c in characteristicsData): raise TypeError(f'Expected List[int] got {type(characteristicsData)}')
 
         maxPacketSize = self.getMaxPacketSize()
 
@@ -1513,7 +1515,7 @@ class PyFingerPrint(object):
 
         return completePayload
 
-    def UploadDatabase(self, db: Union[Dict[int, Union[List[int], Record]], Union[List[int], Record]]):
+    def UploadDataBase(self, db: Union[Dict[int, Union[List[int], Record]], Union[List[int], Record]]):
         if isinstance(db, dict): db = list(db.values())
         assert (isinstance(db, list))
 
@@ -1568,7 +1570,6 @@ class PyFingerPrint(object):
 
     def SetRecord(self, position_number: int, chars: Union[List[int], Record]) -> int:
         if isinstance(chars, Record): chars = chars.characteristics
-        if not isinstance(chars, list) and all(isinstance(c, int) for c in chars): raise TypeError(f'Expected List[int] got {type(chars)}')
         if self.uploadCharacteristics(chars): return self.storeTemplate(position_number)
     def GetRecord(self, position_number: int, *, charBufferNumber: int = CHAR_BUFFER1) -> Record:
         """
@@ -1582,7 +1583,7 @@ class PyFingerPrint(object):
         hashed = hashlib.sha256(str(characteristics).encode()).hexdigest()  # Hashes characteristics of template
         return Record(position_number, hashed, characteristics)
 
-    def ScanFinger(self, MinimumAccuracyScore: int, *, charBufferNumber: int = CHAR_BUFFER1 ) -> Authentication:
+    def ScanFinger(self, MinimumAccuracyScore: int, *, charBufferNumber: int = CHAR_BUFFER1) -> Authentication:
         while not self.readImage(): pass
         self.convertImage(charBufferNumber)
         pos, score = self.searchTemplate()
