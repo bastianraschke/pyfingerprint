@@ -1,8 +1,28 @@
+# ------------------------------------------------------------------------------
+#  Created by Tyler Stegmaier.
+#  Property of TrueLogic Company.
+#  Copyright (c) 2020.
+# ------------------------------------------------------------------------------
+
+# !/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+PyFingerprint
+Copyright (C) 2015 Bastian Raschke <bastian.raschke@posteo.de>
+All rights reserved.
+https://github.com/bastianraschke/pyfingerprint
+
+Modified library:
+https://github.com/Jakar510/pyfingerprint/blob/Development/src/files/pyfingerprint/pyfingerprint.py
+"""
+
 import hashlib
 import os
 import struct
 import time
 from multiprocessing.connection import Connection
+from threading import Event
 from typing import Any, Dict, List, Tuple, Union
 
 import serial
@@ -13,10 +33,34 @@ from .Constants import *
 
 
 
-__all__ = ['PyFingerPrint', 'Authentication']
+__all__ = ['PyFingerPrint', 'Result', 'Record']
 
-class Authentication(object):
-    """ [ Authentication.Success, positionNumber, accuracyScore ] """
+# def _ChangeSerialSettings(func, tag: str = '__ChangeSerialSettings__'):
+#     @functools.wraps(func)
+#     def wrapped(self, *args, **kwargs):
+#         args_repr = [repr(a) for a in args]  # 1
+#         kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]  # 2
+#         signature = ", ".join(args_repr + kwargs_repr)  # 3
+#         print(f"\n{tag}.Calling {func.__name__}({signature})")
+#         if self.__external_serial:
+#             # self._serial.close()
+#             self._serial.apply_settings(self._CommSettings)
+#             # self._serial.open()
+#             print(func.__name__)
+#
+#             result = func(self, *args, **kwargs)
+#             # self._serial.close()
+#             self._serial.apply_settings(self._oldSettings)
+#             # self._serial.open()
+#         else:
+#             result = func(self, *args, **kwargs)
+#         print(f"{func.__name__!r} returned {result!r}\n")  # 4
+#         return result
+#     return wrapped
+
+
+class Result(object):
+    """ [ Result.Success, positionNumber, accuracyScore ] """
     Success: bool
     Position: int
     AccuracyScore: int
@@ -126,7 +170,7 @@ class PyFingerPrint(object):
     # dict(port=None, baudrate=DefaultBaudRate, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, timeout=None,
     #      xonxoff=False, rtscts=False, write_timeout=None, dsrdtr=False, inter_byte_timeout=None, exclusive=None, writeTimeout=None, interCharTimeout=None)
     _DefaultSerialSettings = dict(baudrate=DefaultBaudRate, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=0)
-    def __init__(self, Serial: serial.Serial = None, *, address: hex = 0xFFFFFFFF, password: hex = 0x00000000):
+    def __init__(self, Serial: serial.Serial = None, *, address: hex = MAX_ADDRESS, password: hex = MIN_ADDRESS):
         """
             Constructor
 
@@ -134,8 +178,8 @@ class PyFingerPrint(object):
         :param password: integer(4 bytes)
         """
         # BaudRate: int = 57600,  if BaudRate < 9600 or BaudRate > 115200 or BaudRate % 9600 != 0: raise ValueError('The given baudrate is invalid!')
-        if address < 0x00000000 or address > 0xFFFFFFFF: raise ValueError('The given address is invalid!')
-        if password < 0x00000000 or password > 0xFFFFFFFF: raise ValueError('The given password is invalid!')
+        if address < MIN_ADDRESS or address > MAX_ADDRESS: raise ValueError('The given address is invalid!')
+        if password < MIN_ADDRESS or password > MAX_ADDRESS: raise ValueError('The given password is invalid!')
 
         self._address = address
         self._password = password
@@ -401,7 +445,7 @@ class PyFingerPrint(object):
         """
 
         ## Validate the password (maximum 4 bytes)
-        if newPassword < 0x00000000 or newPassword > 0xFFFFFFFF:
+        if newPassword < MIN_ADDRESS or newPassword > MAX_ADDRESS:
             raise ValueError('The given password is invalid!')
 
         packetPayload = (
@@ -447,7 +491,7 @@ class PyFingerPrint(object):
         """
 
         ## Validate the address (maximum 4 bytes)
-        if newAddress < 0x00000000 or newAddress > 0xFFFFFFFF:
+        if newAddress < MIN_ADDRESS or newAddress > MAX_ADDRESS:
             raise ValueError('The given address is invalid!')
 
         packetPayload = (
@@ -738,11 +782,11 @@ class PyFingerPrint(object):
                 templateIndex = self.getTemplateIndex(page)
 
                 for i in range(0, len(templateIndex)):
-                    if not templateIndex[i]:  ## Index not used?
+                    if not templateIndex[i]:  ## PageIndex not used?
                         positionNumber = (len(templateIndex) * page) + i
                         break
 
-        if positionNumber < 0x0000 or positionNumber >= self.getStorageCapacity():
+        if positionNumber < 0 or positionNumber >= self.getStorageCapacity():
             raise ValueError('The given position number is invalid!')
 
         if charBufferNumber != CHAR_BUFFER1 and charBufferNumber != CHAR_BUFFER2:
@@ -775,11 +819,11 @@ class PyFingerPrint(object):
             raise Exception('Could not store template in that position')
 
         elif receivedPacketPayload[0] == ERROR_FLASH:
-            raise Exception('Error writing to flash')
+            raise Exception('error writing to flash')
 
         else:
             raise Exception('Unknown error ' + hex(receivedPacketPayload[0]))
-    def searchTemplate(self, charBufferNumber=CHAR_BUFFER1, positionStart=0, count=-1) -> (int, int):
+    def searchTemplate(self, charBufferNumber=CHAR_BUFFER1, positionStart=0, count=-1) -> Result:
         """
         Searches inside the database for the characteristics in char buffer.
 
@@ -831,14 +875,14 @@ class PyFingerPrint(object):
             accuracyScore = self.__leftShift(receivedPacketPayload[3], 8)
             accuracyScore = accuracyScore | self.__leftShift(receivedPacketPayload[4], 0)
 
-            return positionNumber, accuracyScore
+            return Result(True, positionNumber, accuracyScore)
 
         elif receivedPacketPayload[0] == ERROR_COMMUNICATION:
             raise Exception('Communication error')
 
         ## DEBUG: Did not found a matching template
         elif receivedPacketPayload[0] == ERROR_NO_TEMPLATE_FOUND:
-            return -1, -1
+            return Result(False, -1, -1)
 
         else:
             raise Exception('Unknown error ' + hex(receivedPacketPayload[0]))
@@ -858,7 +902,7 @@ class PyFingerPrint(object):
             Exception: if any error occurs
         """
 
-        if positionNumber < 0x0000 or positionNumber >= self.getStorageCapacity():
+        if positionNumber < 0 or positionNumber >= self.getStorageCapacity():
             raise ValueError('The given position number is invalid!')
 
         if charBufferNumber != CHAR_BUFFER1 and charBufferNumber != CHAR_BUFFER2:
@@ -913,10 +957,10 @@ class PyFingerPrint(object):
 
         capacity = self.getStorageCapacity()
 
-        if positionNumber < 0x0000 or positionNumber >= capacity:
+        if positionNumber < 0 or positionNumber >= capacity:
             raise ValueError('The given position number is invalid!')
 
-        if count < 0x0000 or count > capacity - positionNumber:
+        if count < 0 or count > capacity - positionNumber:
             raise ValueError('The given count is invalid!')
 
         packetPayload = (
@@ -1208,7 +1252,7 @@ class PyFingerPrint(object):
                         row += 1
                         column = 0
 
-        resultImage.save(imageDestination)
+        resultImage.Save(imageDestination)
     def convertImage(self, charBufferNumber=CHAR_BUFFER1) -> bool:
         """
         Converts the image in image buffer to characteristics and stores it in specified char buffer.
@@ -1518,7 +1562,7 @@ class PyFingerPrint(object):
         elif receivedPacketPayload[0] == ERROR_COMMUNICATION:
             raise Exception('Communication error')
 
-        ## DEBUG: Could not clear database
+        ## DEBUG: Could not Clear database
         elif receivedPacketPayload[0] == ERROR_CLEAR_DATABASE:
             return False
 
@@ -1540,18 +1584,31 @@ class PyFingerPrint(object):
         hashed = hashlib.sha256(str(characteristics).encode()).hexdigest()  # Hashes characteristics of template
         return Record(position_number, hashed, characteristics)
 
-    def ScanFinger(self, MinimumAccuracyScore: int, *, charBufferNumber: int = CHAR_BUFFER1) -> Authentication:
-        while not self.readImage(): pass
+    def ScanFinger(self, MinimumAccuracyScore: int, Timeout: Union[int, Event] = None, *, charBufferNumber: int = CHAR_BUFFER1) -> Result:
+        self._doReadImage(Timeout)
         self.convertImage(charBufferNumber)
-        pos, score = self.searchTemplate()
-        if pos >= 0 and score > MinimumAccuracyScore:  # positionNumber
-            return Authentication(True, pos, score)
+        result = self.searchTemplate()
+        if result.Success and result.AccuracyScore >= MinimumAccuracyScore: return result
 
-        return Authentication(False, -1, -1)
-    def ScanFingerVerify(self, *, charBufferNumber: int = CHAR_BUFFER1) -> (int, int or float):
-        while not self.readImage(): pass
+        return Result(False, -1, -1)
+    def ScanFingerVerify(self, Timeout: Union[int, Event] = None, *, charBufferNumber: int = CHAR_BUFFER1) -> Result:
+        self._doReadImage(Timeout)
         self.convertImage(charBufferNumber)
         return self.searchTemplate()
+
+    def _doReadImage(self, Timeout: Union[int, Event] = None) -> (int, int or float):
+        if Timeout is None: pass
+        elif isinstance(Timeout, Event): pass
+        elif isinstance(Timeout, int):
+            if Timeout < 0: raise ValueError(f'Provided Timeout is an invalid value. [ {Timeout} ]')
+        else:  raise TypeError(f'Provided Timeout is an invalid Type: expected Union[int, Event], got {type(Timeout)}')
+
+        start = time.time()
+        while not self.readImage():
+            if isinstance(Timeout, Event) and Timeout.is_set(): break
+            elif isinstance(Timeout, int) and time.time() - start > Timeout: break
+
+
 
     def reset_input_buffer(self): self._serial.reset_input_buffer()
 
@@ -1571,10 +1628,27 @@ class PyFingerPrint(object):
         :return:
         :rtype:
         """
-        while conm.poll():  # clear buffers to sync both ends.
+        while conm.poll():  # Clear buffers to sync both ends.
             _ = conm.recv()
 
         if endMessage: conm.send(endMessage)
+
+    @staticmethod
+    def ClearAndSyncUntilReady(conm: Connection, *, endMessage=None):
+        """
+            Clear a multiprocessing.connection.Connection buffer to sync both ends.
+
+        :param endMessage: Optional Message to send after sync is done.
+        :type endMessage: any pickable object
+        :param conm: the connection / pipe
+        :type conm: multiprocessing.connection.Connection
+        :return:
+        :rtype:
+        """
+        while conm.poll():  # Clear buffers to sync both ends.
+            msg = conm.recv()
+            if isinstance(msg, type(endMessage)) and msg == endMessage: break
+
 
 
 def Test():
@@ -1596,7 +1670,7 @@ def Test():
             fpm.convertImage()  # Converts read image to characteristics and stores It in char buffer 1
 
             result = fpm.searchTemplate()  # Checks if finger is already enrolled
-            positionNumber = result[0]
+            positionNumber = result.Position
 
             if positionNumber >= 0:
                 print('Template already exists at position #' + str(positionNumber))
@@ -1620,8 +1694,8 @@ def Test():
             fpm.convertImage()  # Converts read image to characteristics and stores It in char buffer 1
             result = fpm.searchTemplate()  # Searches template
 
-            positionNumber = result[0]
-            accuracyScore = result[1]
+            positionNumber = result.Position
+            accuracyScore = result.AccuracyScore
 
             if positionNumber == -1:
                 print('No match found!')

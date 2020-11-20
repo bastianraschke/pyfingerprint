@@ -92,7 +92,7 @@ ERROR_NO_TMATCHING = 0x08
 ERROR_DOWNLOAD_IMAGE = 0x0F
 ERROR_DOWNLOAD_CHARACTERISTICS = 0x0D
 
-## Unknown error codes
+## Unknown Error codes
 ##
 
 ADDR_CODE = 0x20
@@ -115,3 +115,7 @@ CHAR_BUFFER2 = 0x02
 """
 Char buffer 2
 """
+
+
+MAX_ADDRESS = 0xFFFFFFFF
+MIN_ADDRESS = 0x00000000
