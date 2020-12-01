@@ -1166,8 +1166,7 @@ class PyFingerPrint(object):
         number = number | self.__leftShift(receivedPacketPayload[3], 8)
         number = number | self.__leftShift(receivedPacketPayload[4], 0)
         return number
-    ## TODO:
-    ## Implementation of uploadImage()
+    ## TODO: Implementation of uploadImage()
 
     def downloadImage(self, imageDestination):
         """
