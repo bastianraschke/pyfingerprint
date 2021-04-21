@@ -60,12 +60,24 @@ FINGERPRINT_UPLOADCHARACTERISTICS = 0x09
 ## Note: The documentation mean upload to host computer.
 FINGERPRINT_DOWNLOADCHARACTERISTICS = 0x08
 
+FINGERPRINT_AURALEDCONFIG = 0x35
+
 ## Parameters of setSystemParameter()
 ##
 
 FINGERPRINT_SETSYSTEMPARAMETER_BAUDRATE = 4
 FINGERPRINT_SETSYSTEMPARAMETER_SECURITY_LEVEL = 5
 FINGERPRINT_SETSYSTEMPARAMETER_PACKAGE_SIZE = 6
+
+## Contrl parameter of auraLED()
+##
+
+FINGERPRINT_AURALED_BREATHING = 1
+FINGERPRINT_AURALED_FLASHING = 2
+FINGERPRINT_AURALED_ON = 3
+FINGERPRINT_AURALED_OFF = 4
+FINGERPRINT_AURALED_GRADUALON = 5
+FINGERPRINT_AURALED_GRADUALOFF = 6
 
 ## Packet reply confirmations
 ##
@@ -126,6 +138,15 @@ FINGERPRINT_CHARBUFFER2 = 0x02
 Char buffer 2
 """
 
+## Known sensor sizes: key is total pixels, value is width in pixels
+##
+
+FINGERPRINT_SENSOR_SIZES = dict([
+        ( 192*192, 192 ),
+        ( 256*288, 256 ),
+    ])
+
+
 class PyFingerprint(object):
     """
     Manages ZhianTec fingerprint sensors.
@@ -134,6 +155,8 @@ class PyFingerprint(object):
     __address = None
     __password = None
     __serial = None
+    __sensorWidth = None
+    __sensorHeight = None
 
     def __init__(self, port = '/dev/ttyUSB0', baudRate = 57600, address = 0xFFFFFFFF, password = 0x00000000):
         """
@@ -616,6 +639,17 @@ class PyFingerprint(object):
 
         self.setSystemParameter(FINGERPRINT_SETSYSTEMPARAMETER_PACKAGE_SIZE, packetMaxSizeType)
 
+    def setSensorSize(self, width = None, height = None):
+        """
+        Sets the size of sensor in pixels.
+
+        Arguments:
+            width (int): Sensor width or None to autodetect during downloadImage()
+            height (int): Sensor height or None to autodetect during downloadImage()
+        """
+        self.__sensorWidth = width
+        self.__sensorHeight = height
+
     def getSystemParameters(self):
         """
         Gets all available system information of the sensor.
@@ -868,6 +902,8 @@ class PyFingerprint(object):
 
         Arguments:
             imageDestination (str): Path to image
+            imageWidth (int): Image width in pixels or None for autosize
+            imageHeight (int): Image height in pixels or None for autosize
 
         Raises:
             ValueError: if directory is not writable
@@ -920,32 +956,43 @@ class PyFingerprint(object):
             if ( receivedPacketType != FINGERPRINT_DATAPACKET and receivedPacketType != FINGERPRINT_ENDDATAPACKET ):
                 raise Exception('The received packet is no data packet!')
 
-            imageData.append(receivedPacketPayload)
+            imageData.extend(receivedPacketPayload)
+
+        ## Autodetect image size
+        totalPixels = len(imageData) * 2
+        if (self.__sensorWidth == None and self.__sensorHeight == None):
+            if (totalPixels in FINGERPRINT_SENSOR_SIZES):
+                self.__sensorWidth = FINGERPRINT_SENSOR_SIZES[totalPixels]
+            else:
+                self.__sensorWidth = 256
+
+        elif (self.__sensorWidth == None):
+            self.__sensorWidth = totalPixels // self.__sensorHeight
+
+        if (self.__sensorHeight == None):
+            self.__sensorHeight =  totalPixels // self.__sensorWidth
+
+        if (totalPixels < self.__sensorWidth * self.__sensorHeight):
+            raise Exception('Not enough data ({}) for image size {}x{}'.format(
+                    totalPixels, self.__sensorWidth, self.__sensorHeight))
 
         ## Initialize image
-        resultImage = Image.new('L', (256, 288), 'white')
+        resultImage = Image.new('L', (self.__sensorWidth, self.__sensorHeight), 'white')
         pixels = resultImage.load()
         (resultImageWidth, resultImageHeight) = resultImage.size
-        row = 0
-        column = 0
+        idx = 0
 
         for y in range(resultImageHeight):
-            for x in range(resultImageWidth):
+            for x in range(0, resultImageWidth, 2):
 
                 ## One byte contains two pixels
+                b = imageData[idx]
+                idx += 1
                 ## Thanks to Danylo Esterman <soundcracker@gmail.com> for the "multiple with 17" improvement:
-                if (x % 2 == 0):
-                    ## Draw left 4 Bits one byte of package
-                    pixels[x, y] = (imageData[row][column]  >> 4) * 17
-                else:
-                    ## Draw right 4 Bits one byte of package
-                    pixels[x, y] = (imageData[row][column] & 0x0F) * 17
-                    column += 1
-
-                    ## Reset
-                    if (column == len(imageData[row])):
-                        row += 1
-                        column = 0
+                ## Draw left 4 Bits one byte of package
+                pixels[x, y] = (b >> 4) * 17
+                ## Draw right 4 Bits one byte of package
+                pixels[x + 1, y] = (b & 0x0F) * 17
 
         resultImage.save(imageDestination)
 
@@ -1549,3 +1596,42 @@ class PyFingerprint(object):
                 completePayload.append(receivedPacketPayload[i])
 
         return completePayload
+
+
+    def auraLED(self, control = FINGERPRINT_AURALED_OFF, speed = 50, coloridx = 3, count = 0):
+        """
+        Arguments:
+            control (int): breathing/flashing/on/off/gradually on/off
+            speed (int): speed of flashing/breathing and gradual changes
+            coloridx (int): bitfield, bit 0 controls red LED, bit 1 blue LED
+            count (int): number of flashes/breathes, 0 for infinite
+
+        Returns:
+            True if everything is right.
+
+        Raises:
+            Exception: if any error occurs
+        """
+
+        packetPayload = (
+            FINGERPRINT_AURALEDCONFIG,
+            control, speed, coloridx, count
+        )
+
+        self.__writePacket(FINGERPRINT_COMMANDPACKET, packetPayload)
+        receivedPacket = self.__readPacket()
+
+        receivedPacketType = receivedPacket[0]
+        receivedPacketPayload = receivedPacket[1]
+
+        if ( receivedPacketType != FINGERPRINT_ACKPACKET ):
+            raise Exception('The received packet is no ack packet!')
+
+        if ( receivedPacketPayload[0] == FINGERPRINT_OK ):
+            return True
+
+        elif ( receivedPacketPayload[0] == FINGERPRINT_ERROR_COMMUNICATION ):
+            raise Exception('Communication error')
+
+        else:
+            raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
