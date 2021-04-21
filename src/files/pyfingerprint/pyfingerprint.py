@@ -60,12 +60,24 @@ FINGERPRINT_UPLOADCHARACTERISTICS = 0x09
 ## Note: The documentation mean upload to host computer.
 FINGERPRINT_DOWNLOADCHARACTERISTICS = 0x08
 
+FINGERPRINT_AURALEDCONFIG = 0x35
+
 ## Parameters of setSystemParameter()
 ##
 
 FINGERPRINT_SETSYSTEMPARAMETER_BAUDRATE = 4
 FINGERPRINT_SETSYSTEMPARAMETER_SECURITY_LEVEL = 5
 FINGERPRINT_SETSYSTEMPARAMETER_PACKAGE_SIZE = 6
+
+## Contrl parameter of auraLED()
+##
+
+FINGERPRINT_AURALED_BREATHING = 1
+FINGERPRINT_AURALED_FLASHING = 2
+FINGERPRINT_AURALED_ON = 3
+FINGERPRINT_AURALED_OFF = 4
+FINGERPRINT_AURALED_GRADUALON = 5
+FINGERPRINT_AURALED_GRADUALOFF = 6
 
 ## Packet reply confirmations
 ##
@@ -1584,3 +1596,42 @@ class PyFingerprint(object):
                 completePayload.append(receivedPacketPayload[i])
 
         return completePayload
+
+
+    def auraLED(self, control = FINGERPRINT_AURALED_OFF, speed = 50, coloridx = 3, count = 0):
+        """
+        Arguments:
+            control (int): breathing/flashing/on/off/gradually on/off
+            speed (int): speed of flashing/breathing and gradual changes
+            coloridx (int): bitfield, bit 0 controls red LED, bit 1 blue LED
+            count (int): number of flashes/breathes, 0 for infinite
+
+        Returns:
+            True if everything is right.
+
+        Raises:
+            Exception: if any error occurs
+        """
+
+        packetPayload = (
+            FINGERPRINT_AURALEDCONFIG,
+            control, speed, coloridx, count
+        )
+
+        self.__writePacket(FINGERPRINT_COMMANDPACKET, packetPayload)
+        receivedPacket = self.__readPacket()
+
+        receivedPacketType = receivedPacket[0]
+        receivedPacketPayload = receivedPacket[1]
+
+        if ( receivedPacketType != FINGERPRINT_ACKPACKET ):
+            raise Exception('The received packet is no ack packet!')
+
+        if ( receivedPacketPayload[0] == FINGERPRINT_OK ):
+            return True
+
+        elif ( receivedPacketPayload[0] == FINGERPRINT_ERROR_COMMUNICATION ):
+            raise Exception('Communication error')
+
+        else:
+            raise Exception('Unknown error '+ hex(receivedPacketPayload[0]))
