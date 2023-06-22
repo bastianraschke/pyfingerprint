@@ -39,6 +39,8 @@ FINGERPRINT_TEMPLATECOUNT = 0x1D
 
 FINGERPRINT_READIMAGE = 0x01
 
+FINGERPRINT_LEDCONTROL = 0x35
+
 ## Note: The documentation mean upload to host computer.
 FINGERPRINT_DOWNLOADIMAGE = 0x0A
 
@@ -125,6 +127,39 @@ FINGERPRINT_CHARBUFFER2 = 0x02
 """
 Char buffer 2
 """
+
+## Color control codes
+## Effects
+FINGERPRINT_LEDCONTROL_BREATHING = 0x01
+FINGERPRINT_LEDCONTROL_FLASHING = 0x02
+FINGERPRINT_LEDCONTROL_ALWAYSON = 0x03
+FINGERPRINT_LEDCONTROL_ALWAYSOFF = 0x04
+FINGERPRINT_LEDCONTROL_GRADON = 0x05
+FINGERPRINT_LEDCONTROL_GRADOF = 0x06
+
+# Colors
+FINGERPRINT_LEDCONTROL_COLORWARMWHITE = 0x00
+FINGERPRINT_LEDCONTROL_COLORRED = 0x01
+FINGERPRINT_LEDCONTROL_COLORBLUE = 0x02
+FINGERPRINT_LEDCONTROL_COLORPURPLE = 0x03
+FINGERPRINT_LEDCONTROL_COLORGREEN = 0x04
+FINGERPRINT_LEDCONTROL_COLORYELLOW = 0x05
+FINGERPRINT_LEDCONTROL_COLORCYAN = 0x06
+FINGERPRINT_LEDCONTROL_COLORCOLDWHITE = 0x07
+
+## Colors for alternative usage
+FINGERPRINT_LEDCONTROL_COLORS = {
+    "warmwhite": 0x00,
+    "red": 0x01,
+    "blue": 0x02,
+    "purple": 0x03,
+    "green": 0x04,
+    "yellow": 0x05,
+    "cyan": 0x06,
+    "coldwhite": 0x07
+}
+
+
 
 class PyFingerprint(object):
     """
@@ -1549,3 +1584,33 @@ class PyFingerprint(object):
                 completePayload.append(receivedPacketPayload[i])
 
         return completePayload
+
+    def ledControl(self, color, effect, duration=0, speed=0x00):
+
+        packetPayload = (
+            FINGERPRINT_LEDCONTROL, # instruction code
+            effect, # control code
+            speed, # speed
+            color, # color index
+            duration, # times
+        )
+
+        self.__writePacket(FINGERPRINT_COMMANDPACKET, packetPayload)
+        receivedPacket = self.__readPacket()
+
+        receivedPacketType = receivedPacket[0]
+        receivedPacketPayload = receivedPacket[1]
+
+
+        return # ignore problems with Aura LED
+
+        if ( receivedPacketType != FINGERPRINT_ACKPACKET ):
+            raise Exception('The received packet is no ack packet!')
+
+
+        ## DEBUG: Sensor password is correct
+        if ( receivedPacketPayload[0] == 0x00 ):
+            return True
+
+        else:
+            raise Exception('Error when receiving the color setup answer package' + hex(receivedPacketPayload[0]))
